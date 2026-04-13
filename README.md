@@ -8,14 +8,13 @@ A task management app built with React, TypeScript, and Vite.
 
 - **Frontend**: React 19, TypeScript, Tailwind CSS v4, Radix UI
 - **Routing**: React Router v7
-- **Data**: TanStack Query v5, React Hook Form, Zod
+- **Data fetching**: TanStack Query v5
+- **Forms**: React Hook Form + Zod validation
 - **Backend**: json-server + json-server-auth (mock REST API with JWT)
 
 ---
 
 ## Quickstart with Docker
-
-The fastest way to run the full app (frontend + backend) in one command:
 
 ```bash
 git clone https://github.com/LalitaPandey/taskflow
@@ -27,7 +26,7 @@ docker compose up
 App available at **http://localhost:3000**
 
 Log in with:
-- Email: `lalitapandey030@gmail.com`
+- Email: `test@example.com`
 - Password: `password123`
 
 > Requires [Docker Desktop](https://www.docker.com/products/docker-desktop) to be installed and running.
@@ -38,17 +37,16 @@ Log in with:
 
 **Terminal 1 — API server (port 4000)**
 ```bash
+npm install
 npm run api
 ```
 
-**Terminal 2 — Frontend (port 5173)**
+**Terminal 2 — Frontend (port 3000)**
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:5173` and log in with:
-- Email: `lalitapandey030@gmail.com`
-- Password: `password123`
+Open `http://localhost:3000` and log in with the seed credentials above.
 
 ---
 
@@ -57,111 +55,66 @@ Open `http://localhost:5173` and log in with:
 - JWT authentication (login / register)
 - Projects list with create project
 - Project detail with kanban board (To do / In progress / Done)
-- Add task page — title, description, status, priority, assignee, due date
-- Edit / delete tasks inline
+- Add / edit / delete tasks with title, description, status, priority, assignee, due date
 - Filter tasks by status and assignee
-- Responsive layout with left sidebar navigation
+- Responsive layout with sidebar navigation
+- Loading, error, and empty states throughout
+
+---
+
+## Architecture
+
+The app is a single monorepo. Frontend and backend run as separate processes (or Docker services) and communicate over HTTP.
+
+```
+taskflow/
+├── src/                  # React frontend (Vite)
+│   ├── components/       # Reusable UI components (shadcn/Radix primitives)
+│   ├── pages/            # Route-level page components
+│   ├── hooks/            # Data-fetching hooks (TanStack Query)
+│   ├── lib/              # Axios client, utils
+│   └── types/            # Shared TypeScript types
+├── server.js             # json-server + json-server-auth entry point
+├── db.json               # Seed data (acts as the database)
+├── Dockerfile            # Frontend container (Vite dev server)
+├── Dockerfile.api        # Backend container (Node / json-server)
+└── docker-compose.yml    # Wires both services together
+```
+
+**Why json-server?** It gives a real REST API with auth, CRUD, and filtering with zero backend boilerplate — right for a frontend-focused project where the API shape matters but the persistence layer does not.
+
+**State management**: Server state lives in TanStack Query (caching, invalidation, loading states). No global client state store was needed — component-local state covers UI concerns like modals and filters.
+
+**Component structure**: Pages own data fetching via custom hooks. UI components are presentational and receive data as props, keeping them testable and reusable.
+
+---
+
+## What's Missing / Known Limitations
+
+- **No pagination** — all projects and tasks are fetched in a single request. This would need cursor-based pagination for large datasets.
+- **No real database** — `db.json` is ephemeral inside Docker. Data resets on container rebuild. A production version would use PostgreSQL or SQLite with migrations.
+- **No tests** — unit and integration tests were not added in this scope.
+- **JWT secret is library-managed** — json-server-auth uses an internal fixed secret. A production API would use a configurable secret via environment variable.
+- **No drag-and-drop** — kanban columns are visual only; task status is updated via the edit form.
+- **Single user** — multi-user collaboration (assigning tasks across users) is partially wired in the data model but not fully built out in the UI.
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env` before running locally or with Docker.
+
+| Variable | Description | Default |
+|---|---|---|
+| `VITE_API_URL` | Backend API base URL | `http://localhost:4000` |
 
 ---
 
 ## Deployment
 
-The app is split into two parts that must be deployed separately:
-
-| Part | What it is | Where to deploy |
+| Part | Platform | Notes |
 |---|---|---|
-| Frontend | React + Vite app | Vercel |
-| Backend | json-server API | Render |
+| Frontend | Vercel | Auto-detected Vite config |
+| Backend | Render | `node server.js`, free tier sleeps after 15 min |
 
----
-
-### Deploy Backend on Render
-
-1. Go to [render.com](https://render.com) and sign in
-2. Click **New +** → **Web Service**
-3. Connect your GitHub repository
-4. Fill in the following settings:
-
-| Field | Value |
-|---|---|
-| Name | `taskflow-api` |
-| Branch | `main` |
-| Runtime | `Node` |
-| Build Command | `npm install` |
-| Start Command | `node server.js` |
-| Instance Type | `Free` |
-
-5. Click **Create Web Service**
-6. Wait for the build to finish — Render will give you a URL like:
-   ```
-   https://taskflow-api.onrender.com
-   ```
-7. Copy that URL — you will need it in the next step
-
-> **Note:** Render's free tier spins down after 15 minutes of inactivity. The first request after sleep takes ~30 seconds to wake up.
-
----
-
-### Deploy Frontend on Vercel
-
-1. Go to [vercel.com](https://vercel.com) and sign in
-2. Click **Add New Project** → **Import Git Repository**
-3. Select your `taskflow` repository
-4. Confirm the build settings (Vercel auto-detects Vite):
-
-| Field | Value |
-|---|---|
-| Framework Preset | `Vite` |
-| Build Command | `npm run build` |
-| Output Directory | `dist` |
-
-5. Before clicking Deploy, scroll down to **Environment Variables** and add:
-
-| Key | Value |
-|---|---|
-| `VITE_API_URL` | `https://your-render-url.onrender.com` |
-
-   Replace `https://your-render-url.onrender.com` with the actual URL from Render.
-
-6. Click **Deploy**
-7. Once deployed, Vercel gives you a live URL like:
-   ```
-   https://taskflow-xyz.vercel.app
-   ```
-
----
-
-### Update the API URL after deploying
-
-If you deploy the backend after the frontend, or if the Render URL changes:
-
-1. Go to **Vercel** → your project → **Settings** → **Environment Variables**
-2. Update `VITE_API_URL` with the new Render URL
-3. Go to **Deployments** → click **"..."** on the latest deployment → **Redeploy**
-
----
-
-### Other platforms you can use for the backend
-
-Besides Render, json-server can be deployed on any platform that runs Node.js:
-
-| Platform | Free Tier | Notes |
-|---|---|---|
-| **Render** | Yes | Easiest setup, sleeps after 15 min inactivity |
-| **Railway** | Yes (limited hours) | Fast deploys, no sleep |
-| **Fly.io** | Yes | More control, slightly more setup |
-| **Cyclic** | Yes | Simple Node.js deploys |
-
-> Any platform that runs `node server.js` will work. Just make sure to set `VITE_API_URL` in Vercel to point to whichever backend URL you get.
-
----
-
-### Environment Variables reference
-
-**Frontend (Vercel)**
-
-| Variable | Description | Example |
-|---|---|---|
-| `VITE_API_URL` | URL of the deployed backend API | `https://taskflow-api.onrender.com` |
-
-If `VITE_API_URL` is not set, the frontend defaults to `http://localhost:4000` (local development).
+Set `VITE_API_URL` in Vercel environment variables to point to your Render backend URL.

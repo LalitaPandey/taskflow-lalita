@@ -59,5 +59,5 @@ app.use(router)
 const PORT = 4000
 app.listen(PORT, () => {
   console.log(`TaskFlow API running at http://localhost:${PORT}`)
-  console.log('  Seed credentials: lalitapandey030@gmail.com / password123')
+  console.log('  Seed credentials: test@example.com / password123')
 })
